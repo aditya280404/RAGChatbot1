@@ -17,20 +17,15 @@ from rouge_score import rouge_scorer
 import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, Trainer, TrainingArguments, DataCollatorForSeq2Seq
 
-# Load environment variables from .env file
 load_dotenv()
 
-# Load GROQ and Google API keys
 groq_api_key = os.getenv('GROQ_API_KEY')
 os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY")
 
-# Title for the Streamlit app
 st.title("AthinaAI Chatbot")
 
-# Initialize LLM (Language Model)
 llm = ChatGroq(groq_api_key=groq_api_key, model_name="Gemma-7b-it")
 
-# Template for chat prompts
 prompt = ChatPromptTemplate.from_template("""
 Answer the questions based on the provided context only. 
 Please provide the most accurate response based on the question.
@@ -39,7 +34,7 @@ Please provide the most accurate response based on the question.
 Questions: {input}
 """)
 
-# Function to create embeddings from PDF documents
+
 def create_embeddings():
     if "vectors" not in st.session_state:
         embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
@@ -50,7 +45,7 @@ def create_embeddings():
         num_pages = len(docs)
         st.write(f"Loaded {num_pages} pages")
         
-        # If the document is empty or not loaded properly
+        
         if num_pages == 0:
             st.error("No pages loaded. Please check the PDF file.")
             return
@@ -66,7 +61,7 @@ def create_embeddings():
             st.error("No text chunks created. Please check the text splitting process.")
             return
 
-        # Check the contents of the chunks to ensure they are not empty
+       
         for i, chunk in enumerate(final_documents):
             if not chunk.page_content.strip():
                 st.error(f"Chunk {i+1} is empty. There might be an issue with the text splitting process.")
@@ -84,14 +79,14 @@ def create_embeddings():
     else:
         st.write("Vector Store DB already exists.")
         
-# Button to find embeddings
+
 if st.button(" Find Embeddings first"):
     create_embeddings()
 
-# Text input for user prompt
+
 prompt1 = st.text_input("Enter Your Prompt")
 
-# Handle user prompt
+
 if prompt1:
     if "vectors" in st.session_state:
         document_chain = create_stuff_documents_chain(llm, prompt)
@@ -110,7 +105,7 @@ if st.button("Evaluate"):
     df['question'] = df['question'].astype(str)
     df['ground_truth'] = df['ground_truth'].astype(str)
 
-    # Process dataset if vectors exist
+    
     if "vectors" in st.session_state:
         document_chain = create_stuff_documents_chain(llm, prompt)
         retriever = st.session_state.vectors.as_retriever()
@@ -119,7 +114,7 @@ if st.button("Evaluate"):
         answers = []
         contexts = []
 
-        # Iterate over each row in the dataset
+       
         for i in range(df.shape[0]):
             question = df.iloc[i, 0]
             ground_truth = df.iloc[i, 1]
@@ -135,13 +130,13 @@ if st.button("Evaluate"):
         df['contexts'] = contexts
         df['ground_truth'] = df.iloc[:, 1]
 
-        # Calculate BERTScore
+      
         P, R, F1 = bert_score.score(df['answer'].tolist(), df['ground_truth'].tolist(), lang='en', rescale_with_baseline=True)
         df['Precision'] = P.tolist()
         df['Recall'] = R.tolist()
         df['F1 Score'] = F1.tolist()
 
-        # Calculate ROUGE and BLEU scores
+        
         rouge = load_metric('rouge')
         bleu = load_metric('bleu')
         rouge_scores = []
@@ -168,7 +163,7 @@ if st.button("Evaluate"):
         df['ROUGE-L F1'] = [score['rougeL'].fmeasure for score in rouge_scores]
         df['BLEU'] = [score['bleu'] for score in bleu_scores]
 
-        # Save processed dataset
+        
         if 'ground_truth' in df.columns:
             df.to_csv("dataset_with_answers.csv", index=False)
             st.write("Dataset processed and saved with answers and evaluation metrics.")
@@ -183,7 +178,7 @@ if st.button("Evaluate"):
         st.write("Please find embeddings first by clicking the 'Find Embeddings' button.")
         
 if st.button("Fine tune"):
-    # Read dataset
+    
     df = pd.read_csv("dataset.csv")
     df['question'] = df['question'].astype(str)
     df['ground_truth'] = df['ground_truth'].astype(str)
@@ -197,7 +192,7 @@ if st.button("Fine tune"):
         answers = []
         contexts = []
 
-        # Iterate over each row in the dataset
+       
         for i in range(df.shape[0]):
             question = df.iloc[i, 0]
             ground_truth = df.iloc[i, 1]
@@ -213,8 +208,8 @@ if st.button("Fine tune"):
         df['contexts'] = contexts
         df['ground_truth'] = df.iloc[:, 1]
 
-        # Fine-tune the model
-        model_name = "t5-small"  # Use a valid model identifier
+       
+        model_name = "t5-small"  
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
 
@@ -226,17 +221,17 @@ if st.button("Fine tune"):
             model_inputs["labels"] = labels["input_ids"]
             return model_inputs
 
-        # Split the data into training and evaluation sets
+        
         train_data_path = 'train_data.csv'
         eval_data_path = 'eval_data.csv'
         df[['question', 'ground_truth']].sample(frac=0.8, random_state=42).to_csv(train_data_path, index=False)
         df[['question', 'ground_truth']].drop(df[['question', 'ground_truth']].sample(frac=0.8, random_state=42).index).to_csv(eval_data_path, index=False)
 
-        # Load and preprocess the datasets
+        
         train_dataset = load_dataset('csv', data_files={'train': train_data_path}).map(preprocess_function, batched=True)
         eval_dataset = load_dataset('csv', data_files={'train': eval_data_path}).map(preprocess_function, batched=True)
 
-        # Use DataCollatorForSeq2Seq
+        
         data_collator = DataCollatorForSeq2Seq(tokenizer, model=model)
 
         training_args = TrainingArguments(
@@ -257,10 +252,10 @@ if st.button("Fine tune"):
 
         trainer.train()
 
-        # Save the fine-tuned model
+       
         model.save_pretrained("fine_tuned_model")
 
-        # Evaluate the fine-tuned model
+        
         eval_results = trainer.evaluate()
         st.write("Fine-tuning completed and model saved as 'fine_tuned_model'.")
         st.write("Evaluation Results:")
