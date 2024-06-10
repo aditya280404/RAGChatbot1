@@ -45,17 +45,49 @@ Questions: {input}
 def create_embeddings():
     if "vectors" not in st.session_state:
         embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+        
         loader = PyPDFLoader("policy-booklet-0923.pdf")
         docs = loader.load()
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-        final_documents = text_splitter.split_documents(docs[:20])
+        
+        num_pages = len(docs)
+        st.write(f"Loaded {num_pages} pages")
+        
+        # If the document is empty or not loaded properly
+        if num_pages == 0:
+            st.error("No pages loaded. Please check the PDF file.")
+            return
+        
+        
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
+        final_documents = text_splitter.split_documents(docs)
+        
+        num_chunks = len(final_documents)
+        
+
+        if num_chunks == 0:
+            st.error("No text chunks created. Please check the text splitting process.")
+            return
+
+        # Check the contents of the chunks to ensure they are not empty
+        for i, chunk in enumerate(final_documents):
+            if not chunk.page_content.strip():
+                st.error(f"Chunk {i+1} is empty. There might be an issue with the text splitting process.")
+                return
+        
+        
         vectors = FAISS.from_documents(final_documents, embeddings)
+        
+        if not vectors:
+            st.error("Embeddings were not created. Please check the embedding creation process.")
+            return
+        
         st.session_state.vectors = vectors
         st.write("Vector Store DB Updated")
-        st.write("First, find embeddings before giving a prompt")
-
+    else:
+        st.write("Vector Store DB already exists.")
+        
 # Button to find embeddings
-if st.button("Find Embeddings"):
+if st.button(" Find Embeddings first"):
     create_embeddings()
 
 # Text input for user prompt
