@@ -1,0 +1,16 @@
+PyPDF2
+groq
+langchain-groq
+langchain
+faiss-cpu
+streamlit
+python-dotenv
+langchain_community
+pypdf
+langchain_google_genai
+bert-score
+absl-py 
+nltk 
+rouge_score 
+sacrebleu
+sentence-transformers
