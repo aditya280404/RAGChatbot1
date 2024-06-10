@@ -14,8 +14,6 @@ from dotenv import load_dotenv
 import bert_score
 from datasets import load_metric, load_dataset
 from rouge_score import rouge_scorer
-from langchain.retrievers import EnsembleRetriever
-from langchain_community.retrievers import BM25Retriever
 import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, Trainer, TrainingArguments, DataCollatorForSeq2Seq
 
